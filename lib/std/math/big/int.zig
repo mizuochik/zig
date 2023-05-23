@@ -66,8 +66,8 @@ pub fn calcPowLimbsBufferLen(a_bit_count: usize, y: usize) usize {
     return 2 + (a_bit_count * y + (limb_bits - 1)) / limb_bits;
 }
 
-pub fn calcSqrtLimbsBufferLen(a_len: usize) usize {
-    return a_len * 3 + calcDivLimbsBufferLen(a_len, a_len);
+pub fn calcSqrtLimbsBufferLen(a_len: usize, aliases: usize) usize {
+    return a_len * (3 + aliases) + calcDivLimbsBufferLen(a_len, a_len);
 }
 
 // Compute the number of limbs required to store a 2s-complement number of `bit_count` bits.
@@ -1354,6 +1354,12 @@ pub const Mutable = struct {
         limbs_buffer: []Limb,
     ) void {
         var buf_index: usize = 0;
+        var a_copy = if (r.limbs.ptr == a.limbs.ptr) b: {
+            const start = buf_index;
+            @memcpy(limbs_buffer[buf_index..][0..a.limbs.len], a.limbs);
+            buf_index += a.limbs.len;
+            break :b a.toMutable(limbs_buffer[start..buf_index]).toConst();
+        } else a;
         var u = b: {
             const start = buf_index;
             buf_index += a.limbs.len;
@@ -1372,7 +1378,7 @@ pub const Mutable = struct {
         u.copy(a);
         while (true) {
             r.copy(u.toConst());
-            t.divFloor(&rem, a, r.toConst(), limbs_buffer[buf_index..]);
+            t.divFloor(&rem, a_copy, r.toConst(), limbs_buffer[buf_index..]);
             t.add(t.toConst(), r.toConst());
             u.shiftRight(t.toConst(), 1);
             if (u.toConst().order(r.toConst()).compare(.gte))
@@ -3176,8 +3182,10 @@ pub const Managed = struct {
         }
     }
 
+    /// r = √a
     pub fn sqrt(rma: *Managed, a: *const Managed) !void {
-        const needed_limbs = calcSqrtLimbsBufferLen(a.len());
+        const aliases: usize = if (rma.limbs.ptr == a.limbs.ptr) 1 else 0;
+        const needed_limbs = calcSqrtLimbsBufferLen(a.len(), aliases);
 
         const limbs_buffer = try rma.allocator.alloc(Limb, needed_limbs);
         defer rma.allocator.free(limbs_buffer);

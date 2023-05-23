@@ -2628,9 +2628,13 @@ test "big.int sqrt" {
     var b = try Managed.initSet(testing.allocator, 25);
     defer b.deinit();
 
+    // not aliased
     try a.sqrt(&b);
-
     try testing.expectEqual(@as(i32, 5), try a.to(i32));
+
+    // aliased
+    try b.sqrt(&b);
+    try testing.expectEqual(@as(i32, 5), try b.to(i32));
 }
 
 test "big.int regression test for 1 limb overflow with alias" {
