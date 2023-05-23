@@ -1344,6 +1344,38 @@ pub const Mutable = struct {
         r.positive = a.positive or (b & 1) == 0;
     }
 
+    pub fn sqrt(
+        r: *Mutable,
+        a: Const,
+        limbs_buffer: []Limb,
+    ) void {
+        var buf_index: usize = 0;
+        var u = b: {
+            const start = buf_index;
+            buf_index += a.limbs.len;
+            break :b Mutable.init(limbs_buffer[start..buf_index], 0);
+        };
+        var t = b: {
+            const start = buf_index;
+            buf_index += a.limbs.len;
+            break :b Mutable.init(limbs_buffer[start..buf_index], 0);
+        };
+        var rem = b: {
+            const start = buf_index;
+            buf_index += a.limbs.len;
+            break :b Mutable.init(limbs_buffer[start..buf_index], 0);
+        };
+        u.copy(a);
+        while (true) {
+            r.copy(u.toConst());
+            t.divFloor(&rem, a, r.toConst(), limbs_buffer[buf_index..]);
+            t.add(t.toConst(), r.toConst());
+            u.shiftRight(t.toConst(), 1);
+            if (u.toConst().order(r.toConst()).compare(.gte))
+                break;
+        }
+    }
+
     /// rma may not alias x or y.
     /// x and y may alias each other.
     /// Asserts that `rma` has enough limbs to store the result. Upper bound is given by `calcGcdNoAliasLimbLen`.
@@ -3138,6 +3170,12 @@ pub const Managed = struct {
             try rma_mut.pow(a.toConst(), b, limbs_buffer);
             rma.setMetadata(rma_mut.positive, rma_mut.len);
         }
+    }
+
+    pub fn sqrt(r: *Managed, a: *const Managed) void {
+        var m = r.toMutable();
+        m.sqrt(a.toConst());
+        r.setMetadata(m.positive, m.len);
     }
 
     /// r = truncate(Int(signedness, bit_count), a)

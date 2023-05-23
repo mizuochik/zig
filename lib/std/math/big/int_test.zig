@@ -2622,6 +2622,17 @@ test "big.int pow" {
     }
 }
 
+test "big.int sqrt" {
+    var a = try Managed.initSet(testing.allocator, 0);
+    defer a.deinit();
+    var b = try Managed.initSet(testing.allocator, 25);
+    defer b.deinit();
+
+    a.sqrt(&b);
+
+    try testing.expectEqual(@as(i32, 5), try a.to(i32));
+}
+
 test "big.int regression test for 1 limb overflow with alias" {
     // Note these happen to be two consecutive Fibonacci sequence numbers, the
     // first two whose sum exceeds 2**64.
