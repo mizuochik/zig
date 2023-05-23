@@ -2628,7 +2628,7 @@ test "big.int sqrt" {
     var b = try Managed.initSet(testing.allocator, 25);
     defer b.deinit();
 
-    a.sqrt(&b);
+    try a.sqrt(&b);
 
     try testing.expectEqual(@as(i32, 5), try a.to(i32));
 }

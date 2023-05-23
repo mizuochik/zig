@@ -66,6 +66,10 @@ pub fn calcPowLimbsBufferLen(a_bit_count: usize, y: usize) usize {
     return 2 + (a_bit_count * y + (limb_bits - 1)) / limb_bits;
 }
 
+pub fn calcSqrtLimbsBufferLen(a_len: usize) usize {
+    return a_len * 3 + calcDivLimbsBufferLen(a_len, a_len);
+}
+
 // Compute the number of limbs required to store a 2s-complement number of `bit_count` bits.
 pub fn calcTwosCompLimbCount(bit_count: usize) usize {
     return std.math.divCeil(usize, bit_count, @bitSizeOf(Limb)) catch unreachable;
@@ -3172,10 +3176,15 @@ pub const Managed = struct {
         }
     }
 
-    pub fn sqrt(r: *Managed, a: *const Managed) void {
-        var m = r.toMutable();
-        m.sqrt(a.toConst());
-        r.setMetadata(m.positive, m.len);
+    pub fn sqrt(rma: *Managed, a: *const Managed) !void {
+        const needed_limbs = calcSqrtLimbsBufferLen(a.len());
+
+        const limbs_buffer = try rma.allocator.alloc(Limb, needed_limbs);
+        defer rma.allocator.free(limbs_buffer);
+
+        var m = rma.toMutable();
+        m.sqrt(a.toConst(), limbs_buffer);
+        rma.setMetadata(m.positive, m.len);
     }
 
     /// r = truncate(Int(signedness, bit_count), a)
