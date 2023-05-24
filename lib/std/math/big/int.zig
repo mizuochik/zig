@@ -3195,7 +3195,7 @@ pub const Managed = struct {
         }
     }
 
-    /// r = √a
+    /// r = ⌊√a⌋
     pub fn sqrt(rma: *Managed, a: *const Managed) !void {
         const aliases: usize = if (rma.limbs.ptr == a.limbs.ptr) 1 else 0;
         const needed_limbs = calcSqrtLimbsBufferLen(a.len(), aliases);
@@ -3203,6 +3203,7 @@ pub const Managed = struct {
         const limbs_buffer = try rma.allocator.alloc(Limb, needed_limbs);
         defer rma.allocator.free(limbs_buffer);
 
+        try rma.ensureCapacity(math.max(1, a.len() / 2));
         var m = rma.toMutable();
         m.sqrt(a.toConst(), limbs_buffer);
         rma.setMetadata(m.positive, m.len);
