@@ -1356,15 +1356,9 @@ pub const Mutable = struct {
         var buf_index: usize = 0;
         var a_copy = if (r.limbs.ptr == a.limbs.ptr) b: {
             const start = buf_index;
-            @memcpy(limbs_buffer[buf_index..][0..a.limbs.len], a.limbs);
             buf_index += a.limbs.len;
             break :b a.toMutable(limbs_buffer[start..buf_index]).toConst();
         } else a;
-        var u = b: {
-            const start = buf_index;
-            buf_index += a.limbs.len;
-            break :b Mutable.init(limbs_buffer[start..buf_index], 0);
-        };
         var t = b: {
             const start = buf_index;
             buf_index += a.limbs.len;
@@ -1375,14 +1369,28 @@ pub const Mutable = struct {
             buf_index += a.limbs.len;
             break :b Mutable.init(limbs_buffer[start..buf_index], 0);
         };
+        var u = r.*;
         u.copy(a);
+        var s = b: {
+            const start = buf_index;
+            buf_index += a.limbs.len;
+            break :b a.toMutable(limbs_buffer[start..buf_index]);
+        };
         while (true) {
-            r.copy(u.toConst());
-            t.divFloor(&rem, a_copy, r.toConst(), limbs_buffer[buf_index..]);
-            t.add(t.toConst(), r.toConst());
+            t.divFloor(&rem, a_copy, s.toConst(), limbs_buffer[buf_index..]);
+            t.add(t.toConst(), s.toConst());
             u.shiftRight(t.toConst(), 1);
-            if (u.toConst().order(r.toConst()).compare(.gte))
-                break;
+            if (u.toConst().order(s.toConst()).compare(.gte)) {
+                // s is the result. Copy s to r unless s aliases r.
+                if (s.limbs.ptr != r.limbs.ptr)
+                    r.copy(s.toConst());
+                return;
+            }
+
+            // Avoid copying u to s by swapping u and s
+            var tmp_s = s;
+            s = u;
+            u = tmp_s;
         }
     }
 
