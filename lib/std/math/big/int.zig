@@ -66,8 +66,11 @@ pub fn calcPowLimbsBufferLen(a_bit_count: usize, y: usize) usize {
     return 2 + (a_bit_count * y + (limb_bits - 1)) / limb_bits;
 }
 
-pub fn calcSqrtLimbsBufferLen(a_len: usize) usize {
-    return a_len * 4 + calcDivLimbsBufferLen(a_len, a_len);
+pub fn calcSqrtLimbsBufferLen(a_bit_count: usize) usize {
+    const a_limb_count = (a_bit_count - 1) / limb_bits + 1;
+    const shift = (a_bit_count + 1) / 2;
+    const u_s_rem_limb_count = 1 + ((shift - 1) / limb_bits + 1);
+    return a_limb_count + 3 * u_s_rem_limb_count + calcDivLimbsBufferLen(a_limb_count, u_s_rem_limb_count);
 }
 
 // Compute the number of limbs required to store a 2s-complement number of `bit_count` bits.
@@ -1359,14 +1362,9 @@ pub const Mutable = struct {
             buf_index += a.limbs.len;
             break :b Mutable.init(limbs_buffer[start..buf_index], 0);
         };
-        var rem = b: {
-            const start = buf_index;
-            buf_index += a.limbs.len;
-            break :b Mutable.init(limbs_buffer[start..buf_index], 0);
-        };
         var u = b: {
-            const shift = (a.bitCountAbs() + 1) / 2;
             const start = buf_index;
+            const shift = (a.bitCountAbs() + 1) / 2;
             buf_index += 1 + ((shift - 1) / limb_bits + 1);
             var m = Mutable.init(limbs_buffer[start..buf_index], 1);
             m.shiftLeft(m.toConst(), shift); // u must be >= ⌊√a⌋, and should be as small as possible for efficiency
@@ -1376,6 +1374,11 @@ pub const Mutable = struct {
             const start = buf_index;
             buf_index += u.limbs.len;
             break :b u.toConst().toMutable(limbs_buffer[start..buf_index]);
+        };
+        var rem = b: {
+            const start = buf_index;
+            buf_index += s.limbs.len;
+            break :b Mutable.init(limbs_buffer[start..buf_index], 0);
         };
 
         while (true) {
@@ -3196,7 +3199,7 @@ pub const Managed = struct {
 
     /// r = ⌊√a⌋
     pub fn sqrt(rma: *Managed, a: *const Managed) !void {
-        const needed_limbs = calcSqrtLimbsBufferLen(a.len());
+        const needed_limbs = calcSqrtLimbsBufferLen(a.bitCountAbs());
 
         const limbs_buffer = try rma.allocator.alloc(Limb, needed_limbs);
         defer rma.allocator.free(limbs_buffer);
