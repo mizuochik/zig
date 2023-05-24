@@ -3204,7 +3204,7 @@ pub const Managed = struct {
         const limbs_buffer = try rma.allocator.alloc(Limb, needed_limbs);
         defer rma.allocator.free(limbs_buffer);
 
-        try rma.ensureCapacity(math.max(1, a.len() / 2));
+        try rma.ensureCapacity((a.len() - 1) / 2 + 1);
         var m = rma.toMutable();
         m.sqrt(a.toConst(), limbs_buffer);
         rma.setMetadata(m.positive, m.len);
