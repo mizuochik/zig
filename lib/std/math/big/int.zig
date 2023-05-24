@@ -67,7 +67,7 @@ pub fn calcPowLimbsBufferLen(a_bit_count: usize, y: usize) usize {
 }
 
 pub fn calcSqrtLimbsBufferLen(a_len: usize, aliases: usize) usize {
-    return a_len * (3 + aliases) + calcDivLimbsBufferLen(a_len, a_len);
+    return a_len * (4 + aliases) + calcDivLimbsBufferLen(a_len, a_len);
 }
 
 // Compute the number of limbs required to store a 2s-complement number of `bit_count` bits.
@@ -1369,8 +1369,11 @@ pub const Mutable = struct {
             buf_index += a.limbs.len;
             break :b Mutable.init(limbs_buffer[start..buf_index], 0);
         };
-        var u = r.*;
-        u.copy(a);
+        var u = b: {
+            const start = buf_index;
+            buf_index += a.limbs.len;
+            break :b a.toMutable(limbs_buffer[start..buf_index]);
+        };
         var s = b: {
             const start = buf_index;
             buf_index += a.limbs.len;
@@ -1380,10 +1383,12 @@ pub const Mutable = struct {
             t.divFloor(&rem, a_copy, s.toConst(), limbs_buffer[buf_index..]);
             t.add(t.toConst(), s.toConst());
             u.shiftRight(t.toConst(), 1);
+
             if (u.toConst().order(s.toConst()).compare(.gte)) {
-                // s is the result. Copy s to r unless s aliases r.
-                if (s.limbs.ptr != r.limbs.ptr)
-                    r.copy(s.toConst());
+                // s is the result
+                @memcpy(r.limbs[0..s.len], s.limbs[0..s.len]);
+                r.positive = s.positive;
+                r.len = s.len;
                 return;
             }
 
