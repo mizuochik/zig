@@ -1365,15 +1365,19 @@ pub const Mutable = struct {
             break :b Mutable.init(limbs_buffer[start..buf_index], 0);
         };
         var u = b: {
+            const shift = (a.bitCountAbs() + 1) / 2;
             const start = buf_index;
-            buf_index += a.limbs.len;
-            break :b a.toMutable(limbs_buffer[start..buf_index]);
+            buf_index += 1 + ((shift - 1) / limb_bits + 1);
+            var m = Mutable.init(limbs_buffer[start..buf_index], 1);
+            m.shiftLeft(m.toConst(), shift); // u must be >= ⌊√a⌋, and should be as small as possible for efficiency
+            break :b m;
         };
         var s = b: {
             const start = buf_index;
-            buf_index += a.limbs.len;
-            break :b a.toMutable(limbs_buffer[start..buf_index]);
+            buf_index += u.limbs.len;
+            break :b u.toConst().toMutable(limbs_buffer[start..buf_index]);
         };
+
         while (true) {
             t.divFloor(&rem, a, s.toConst(), limbs_buffer[buf_index..]);
             t.add(t.toConst(), s.toConst());
